@@ -7,15 +7,19 @@ import { RequestValidate } from "../utils/validators/request.validate";
 import { Str } from "../utils/slugable/slug.function";
 import { raiseException, responseServer } from "../utils/exceptions/raise.exception";
 import { ProductRepository } from "../repositories/product/product.repository";
+import { ProductCategoryRepository } from "../repositories/product/product-category.repository";
 import { RequestHandler } from "../models/request/request.model";
 import { createImagePath } from '../utils/transform/image.transform';
+import { CustomerRepository } from "../repositories/customer.repository";
 
 @Controller('/product')
 export default class ProductApi {
 	public productTitle: string;
 
 	constructor(
-		private productRepository: ProductRepository
+		private productRepository: ProductRepository,
+		private productCategoryRepository: ProductCategoryRepository,
+		private readonly customerRepository: CustomerRepository,
 	) {
 	}
 
@@ -69,6 +73,68 @@ export default class ProductApi {
 			}
 			const newProduct: any = await this.productRepository.createProduct(data, request.user);
 			return responseServer(request, response, 201, 'Create product successfully', newProduct);
+		} catch (error) {
+			return raiseException(request, response, 500, error.message);
+		}
+	}
+
+	@Post('/webhook', [])
+	public async connectProductWebhook(request: RequestHandler, response: Response) {
+		try {
+			const data: any = request.body;
+			console.log(data);
+			const dataFromWebhook: any = data.Notifications[0].Data[0];
+			console.log('***** dataFromWebhook ****** ', dataFromWebhook);
+			// check update product from Kiotviet
+			if(data.Notifications[0].Action === `product.update.${process.env.RETAILER_ID}`) {
+				const skuCode: string = dataFromWebhook.Code;
+				const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('sku', skuCode);
+
+				if (checkProductExist && checkProductExist.length > 0) {
+					const updateData: any = {
+						name: dataFromWebhook.Name,
+						price: dataFromWebhook.BasePrice,
+						description: dataFromWebhook.Description,
+						sku: dataFromWebhook.Code
+					}
+					await this.productRepository.updateDataProduct(checkProductExist[0].product_id, updateData, request.user);
+					return responseServer(request, response, 200, "Update product successfully");
+				} else {
+					// If not find the product by sku then create new product
+					const newProductData: any = {
+						name: dataFromWebhook.Name,
+						price: dataFromWebhook.BasePrice,
+						description: dataFromWebhook.Description
+					}
+					const category: any = await this.productCategoryRepository.findProductCategoryByKey(dataFromWebhook.CategoryName, 'name');
+					if(category) {
+						newProductData.category_id = category.id
+					}
+					if (dataFromWebhook.Name) {
+						newProductData.slug = Str.slug(dataFromWebhook.Name);
+					}
+
+					const products: any = await this.productRepository.getProductBySlug(newProductData.slug);
+					if (products && products.length > 0) {
+						return raiseException(request, response, 409, 'Slug is already exist');
+					}
+					if (newProductData.combinations) {
+						newProductData.count = this.getCountAllProductWhenCreateWithCombinationData(newProductData.combinations);
+					}
+					const newProduct: any = await this.productRepository.createProduct(newProductData, request.user);
+					return responseServer(request, response, 201, 'Create product successfully', newProduct);
+				}
+			}  
+			
+			// Check delete product from Kiotviet
+			if (data.Notifications[0].Action === `product.delete.${process.env.RETAILER_ID}`) {
+				console.log(`Remove product has id: ${data.Notifications[0].Data[0]} from Kiotviet`)
+				
+				return responseServer(request, response, 200, `Remove product has id ${data.Notifications[0].Data[0]} from Kiotviet successfully`);
+			} 
+			
+			// Check create/update customer from Kiotviet
+
 		} catch (error) {
 			return raiseException(request, response, 500, error.message);
 		}
@@ -230,4 +296,13 @@ export default class ProductApi {
 
 		return result;
 	}
+
+	private async checkEmailExist(email: string): Promise<boolean> {
+    const result: any = await this.customerRepository.findCustomerByEmail(email);
+    if (result && result.length > 0) {
+      return true;
+    }
+
+    return false;
+  }
 }

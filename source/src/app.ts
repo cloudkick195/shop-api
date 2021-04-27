@@ -108,7 +108,7 @@ export default class App {
         this.app.use((request: RequestHandler, response: Response, next) => {
             if (mediaParser.includes(request.path)) {
                 const form = new IncomingForm();
-                form.multiples = true;
+                //form.multiples = true;
                 response.setHeader('Content-Type', 'application/json');
                 form.parse(request, function(err, fields: any, files) {
                     request.files = files as any;
