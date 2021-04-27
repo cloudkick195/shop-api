@@ -259,6 +259,7 @@ export default class ProductApi {
 			detailProduct[1].map((item: any) => {
 				const dataItem: any = {
 					combination_id: item.combination_id,
+					combination_sku: item.combination_sku,
 					count: item.totalCount,
 					entity: item.entity_name,
 					entity_id: item.entity_id,
