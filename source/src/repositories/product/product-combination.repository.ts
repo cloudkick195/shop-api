@@ -8,7 +8,7 @@ import { DBConnection } from "../../database/connection";
 
 @Injectable()
 export class ProductCombinationRepository extends BaseRepository implements RepositoryInterface {
-  public fillable: Array<string> = ['product_id', 'count', 'is_archive'];
+  public fillable: Array<string> = ['product_id', 'count', 'is_archive', 'combination_sku'];
   private tableName: string = 'product_attribute_combinations';
 
   constructor(
@@ -30,7 +30,8 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
     return connection(this.tableName).select([
       'combination_id',
       'product_id',
-      'count'
+      'count',
+      'combination_sku'
     ]).where({ is_archive: false, combination_id: combinationId }).first();
   }
 
@@ -42,6 +43,7 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
         `${this.tableName}.combination_id`,
         `${this.tableName}.product_id`,
         `${this.tableName}.count`,
+        `${this.tableName}.combination_sku`,
         `${productAttributeEntityCombinationsTable}.entity_id`
       ])
       .leftJoin(productAttributeEntityCombinationsTable, `${productAttributeEntityCombinationsTable}.combination_id`, `${this.tableName}.combination_id`)
@@ -50,9 +52,11 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
 
   public async prepareAndCreateCombinationForProduct(productId: number, combinationData: Array<any>, returnCombinationData: boolean = false, transaction: Knex.Transaction): Promise<any> {
     const connection: Knex = this.dbConnector.getConnection();
+    
     const [rowInsertId] = await connection(this.tableName).transacting(transaction).insert(combinationData.map((item) => ({
       product_id: productId,
       count: item.count,
+      combination_sku: item.combination_sku,
     })));
     if (returnCombinationData) {
       return this.getCombinationById(rowInsertId);
@@ -116,11 +120,13 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
       const connection: Knex = this.dbConnector.getConnection();
       const dataStructure: any = {
         image: [],
-        count: []
+        count: [],
+        combination_sku: []
       };
       const dataMapping: any = {
         image: [],
-        count: []
+        count: [],
+        combination_sku: []
       };
       const listIds: Array<number> = [];
       const queryLists: Array<string> = [];
@@ -130,9 +136,12 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
           if ('count' in item) {
             if (index === 0) {
               dataStructure.count.push(` count = CASE combination_id  `);
+              dataStructure.combination_sku.push(` combination_sku = CASE combination_id  `);
             }
             dataStructure.count.push(` WHEN ${item.id} THEN ? `);
+            dataStructure.combination_sku.push(` WHEN ${item.id} THEN ? `);
             dataMapping.count.push(item.count);
+            dataMapping.combination_sku.push(item.combination_sku);
           }
         }
       });
@@ -141,13 +150,15 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
           queryLists.push(dataStructure[item].join(""));
         }
       });
+      
       let sql: string = `
                 UPDATE product_attribute_combinations SET 
                     ${queryLists.join("  END, ")} END
                 WHERE product_id = ${productId} AND combination_id IN (${listIds.join()});
             `;
+           
       if (dataStructure.image.length > 0 || dataStructure.count.length > 0) {
-        return connection.raw(sql, [...dataMapping.image, ...dataMapping.count]).transacting(transaction);
+        return connection.raw(sql, [...dataMapping.count, ...dataMapping.combination_sku]).transacting(transaction);
       }
     } catch (error) {
       throw new Error(error.message);

@@ -150,6 +150,7 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
       SELECT 
         pac.combination_id,
         pac.count AS totalCount,
+        pac.combination_sku,
         aet.attr_id,
         aet.id_entity_type as entity_id,
         aet.entity_name
@@ -225,6 +226,7 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
       t = await connection.transaction();
       const { newCombinations, updateCombinations, updateSlides, newSlides, avatar, newEntity, updateEntity, ...productData } = dataUpdate;
       const listQueries: Array<Promise<any>> = [];
+      
       if (newCombinations && newCombinations.length > 0) {
         listQueries.push(this.productCombinationRepository.prepareAndCreateCombinationForProduct(productId, dataUpdate.newCombinations, false, t));
       }
