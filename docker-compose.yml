@@ -11,21 +11,19 @@ services:
       ports:
         - "8091:8080"
     mysql:
-        image: mysql:5.7.27
-        volumes:
-            - "./.data/db:/var/lib/mysql"
-            - "/dev/null:/usr/bin/mysql_ssl_rsa_setup"
-        ports:
-            - "33065:3306"
-        environment:
-            - MYSQL_DATABASE=shop160_db
-            - MYSQL_ROOT_PASSWORD=root
-            - MYSQL_USER=root
-            - MYSQL_PASSWORD=root
+        image: mysql:5.7.34
+        command: --default-authentication-plugin=mysql_native_password
+        restart: always
+        environment: 
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: shop160_db
+            MYSQL_PASSWORD: root
         networks:
             - app
-        expose:
-            - "33065"
+        volumes:
+            - ./cache/mysql:/var/lib/mysql
+        ports:
+            - "33065:3306" 
     security:
         build: ./source
         links:
