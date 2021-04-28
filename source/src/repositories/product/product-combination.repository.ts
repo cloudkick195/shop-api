@@ -50,6 +50,19 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
       .where({ [`${this.tableName}.is_archive`]: false, [`pac.combination_id`]: combinationId });
   }
 
+  public async checkExistCombinationBySku(combinationSku: string): Promise<any> {
+    console.log('combinationSku: ', combinationSku);
+    const connection: Knex = this.dbConnector.getConnection();
+    return connection(this.tableName)
+      .select([
+        `${this.tableName}.combination_id`,
+        `${this.tableName}.product_id`,
+        `${this.tableName}.count`,
+        `${this.tableName}.combination_sku`
+      ])
+      .where({ [`${this.tableName}.combination_sku`]: combinationSku });
+  }
+
   public async prepareAndCreateCombinationForProduct(productId: number, combinationData: Array<any>, returnCombinationData: boolean = false, transaction: Knex.Transaction): Promise<any> {
     const connection: Knex = this.dbConnector.getConnection();
     
@@ -113,6 +126,13 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
 
   public async updateListCombinationId(productId: number, dataUpdate: any, transaction: Knex.Transaction): Promise<any> {
     return this.updateListProductCombinationData(productId, dataUpdate, transaction);
+  }
+
+  public async updateCount(combination_sku: string, dataUpdate: any): Promise<any> {
+    const connection: Knex = this.dbConnector.getConnection();
+    console.log('combination_sku: ', combination_sku);
+    console.log('dataUpdate: ', dataUpdate);
+    return connection(this.tableName).where({ 'combination_sku': combination_sku }).update({ 'count': dataUpdate });
   }
 
   private async updateListProductCombinationData(productId: number, dataUpdate: any[], transaction: Knex.Transaction): Promise<any> {

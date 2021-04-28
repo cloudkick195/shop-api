@@ -11,6 +11,7 @@ import { ProductCategoryRepository } from "../repositories/product/product-categ
 import { RequestHandler } from "../models/request/request.model";
 import { createImagePath } from '../utils/transform/image.transform';
 import { CustomerRepository } from "../repositories/customer.repository";
+import { ProductCombinationRepository } from "../repositories/product/product-combination.repository"
 
 @Controller('/product')
 export default class ProductApi {
@@ -20,6 +21,7 @@ export default class ProductApi {
 		private productRepository: ProductRepository,
 		private productCategoryRepository: ProductCategoryRepository,
 		private readonly customerRepository: CustomerRepository,
+		private readonly productCombinationRepository: ProductCombinationRepository,
 	) {
 	}
 
@@ -82,20 +84,27 @@ export default class ProductApi {
 	public async connectProductWebhook(request: RequestHandler, response: Response) {
 		try {
 			const data: any = request.body;
-			console.log(data);
+			// console.log(data);
 			const dataFromWebhook: any = data.Notifications[0].Data[0];
 			console.log('***** dataFromWebhook ****** ', dataFromWebhook);
 			// check update product from Kiotviet
 			if(data.Notifications[0].Action === `product.update.${process.env.RETAILER_ID}`) {
 				const skuCode: string = dataFromWebhook.Code;
 				const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('sku', skuCode);
+				const checkConbinationSkuExist = await this.productCombinationRepository.checkExistCombinationBySku(skuCode);
+				console.log('checkConbinationSkuExist: ', checkConbinationSkuExist);
 
+				// Update count of products in table product_attribute_combinations
+				if(checkConbinationSkuExist) {
+					await this.productCombinationRepository.updateCount(skuCode, dataFromWebhook.Inventories[0].OnHand);
+				}
+
+				// If find the product by sku then update product
 				if (checkProductExist && checkProductExist.length > 0) {
 					const updateData: any = {
 						name: dataFromWebhook.Name,
 						price: dataFromWebhook.BasePrice,
-						description: dataFromWebhook.Description,
-						sku: dataFromWebhook.Code
+						description: dataFromWebhook.Description
 					}
 					await this.productRepository.updateDataProduct(checkProductExist[0].product_id, updateData, request.user);
 					return responseServer(request, response, 200, "Update product successfully");
