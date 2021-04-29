@@ -26,7 +26,6 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
   }
 
   public async createProduct(dataProduct: any, user: any): Promise<any> {
-    console.log('******** dataProduct **********: ', dataProduct);
     const connection: Knex = this.dbConnector.getConnection();
     let t: Knex.Transaction;
     try {

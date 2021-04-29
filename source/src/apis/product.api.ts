@@ -11,7 +11,8 @@ import { ProductCategoryRepository } from "../repositories/product/product-categ
 import { RequestHandler } from "../models/request/request.model";
 import { createImagePath } from '../utils/transform/image.transform';
 import { CustomerRepository } from "../repositories/customer.repository";
-import { ProductCombinationRepository } from "../repositories/product/product-combination.repository"
+import { ProductCombinationRepository } from "../repositories/product/product-combination.repository";
+import axios from 'axios';
 
 @Controller('/product')
 export default class ProductApi {
@@ -21,7 +22,7 @@ export default class ProductApi {
 		private productRepository: ProductRepository,
 		private productCategoryRepository: ProductCategoryRepository,
 		private readonly customerRepository: CustomerRepository,
-		private readonly productCombinationRepository: ProductCombinationRepository,
+		private readonly productCombinationRepository: ProductCombinationRepository
 	) {
 	}
 
@@ -81,7 +82,7 @@ export default class ProductApi {
 	}
 
 	@Post('/webhook', [])
-	public async connectProductWebhook(request: RequestHandler, response: Response) {
+	public async connectWebhook(request: RequestHandler, response: Response) {
 		try {
 			const data: any = request.body;
 			// console.log(data);
@@ -91,11 +92,10 @@ export default class ProductApi {
 			if(data.Notifications[0].Action === `product.update.${process.env.RETAILER_ID}`) {
 				const skuCode: string = dataFromWebhook.Code;
 				const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('sku', skuCode);
-				const checkConbinationSkuExist = await this.productCombinationRepository.checkExistCombinationBySku(skuCode);
-				console.log('checkConbinationSkuExist: ', checkConbinationSkuExist);
+				const checkConbinationSkuExistProductKiotviet = await this.productCombinationRepository.checkExistCombinationBySku(skuCode);
 
 				// Update count of products in table product_attribute_combinations
-				if(checkConbinationSkuExist) {
+				if(checkConbinationSkuExistProductKiotviet) {
 					await this.productCombinationRepository.updateCount(skuCode, dataFromWebhook.Inventories[0].OnHand);
 				}
 
@@ -143,7 +143,28 @@ export default class ProductApi {
 			} 
 			
 			// Check create/update customer from Kiotviet
+			if (data.Notifications[0].Action === `customer.update.${process.env.RETAILER_ID}`) {
+				
+				return responseServer(request, response, 200, `Create customer from Kiotviet successfully`);
+			} 
 
+			// Check create/update order from Kiotviet
+			if (data.Notifications[0].Action === `order.update.${process.env.RETAILER_ID}`) {
+
+				const listProductOrder: any = dataFromWebhook.OrderDetails;
+				const listPromise:any = [];
+				listProductOrder.forEach((product: any) => {
+					listPromise.push(this.getProductKiotviet(product.ProductCode))
+				});
+
+				const listProducts: any = await Promise.all(listPromise)
+				console.log('========== listProducts: ', listProducts)
+				for ( const prod of listProducts ) {
+					await this.productCombinationRepository.checkExistCombinationBySku(prod.code);
+				}
+				
+				return responseServer(request, response, 200, `Create/Update order from Kiotviet successfully`);
+			} 
 		} catch (error) {
 			return raiseException(request, response, 500, error.message);
 		}
@@ -314,5 +335,17 @@ export default class ProductApi {
     }
 
     return false;
+  }
+
+	private async getProductKiotviet(code: string): Promise<any> {
+		console.log('get code: ', code)
+    const product: any = await axios.get(`${process.env.KIOTVIET_PUBLIC_API}/products/code/${code}`, {
+      headers: {
+          'Authorization': `Bearer ${process.env.KIOTVIET_ACCESS_TOKEN}`,
+          'Retailer': process.env.RETAIL_NAME
+      }
+    })
+    
+    return product.data
   }
 }
