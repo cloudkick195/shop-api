@@ -26,12 +26,13 @@ export default class SaleApi {
 			const data: Array<any> = await Promise.all([
 				this.saleRepository.getListSale(),
 			]);
-			responseServer(request, response, 200, 'Get list sales successfully',data)
-			if (data && data.length > 1) {
+			
+			if (data && data.length > 0) {
 				const result: any = this.transformListSales(data[0]);
+				
 				return responseServer(request, response, 200, 'Get list sales successfully', {
 					data: result,
-					count: data[1][0].count
+					count: data[0].count
 				});
 			}
 			return responseServer(request, response, 200, 'Get list sales successfully', [])
@@ -48,22 +49,19 @@ export default class SaleApi {
 			const validatesRequest: any = RequestValidate.handle(
 				{
 					name: ['required'],
-					id: ['required'],
-					category_id: ['required'],
-					price: ['required'],
-					sku: ['required']
+					type: ['required'],
+					type_select: ['required'],
+					value: ['required'],
 				}, data
 			);
+			
+			data.category_select = JSON.stringify(data.category_select);
+			data.product_select = data.product_select;
 			if (!validatesRequest.success) {
 				return raiseException(request, response, 400, 'Validate failure', validatesRequest.errors);
 			}
-			const sales: any = await this.saleRepository.getSaleById(data.id);
-			if (sales && sales.length > 0) {
-				return raiseException(request, response, 409, 'Slug is already exist');
-			}
-			if (data.combinations) {
-				data.count = this.getCountAllSaleWhenCreateWithCombinationData(data.combinations);
-			}
+		
+			
 			const newSale: any = await this.saleRepository.createSale(data, request.user);
 			return responseServer(request, response, 201, 'Create sale successfully', newSale);
 		} catch (error) {
@@ -75,7 +73,7 @@ export default class SaleApi {
 	public async removeSale(request: RequestHandler, response: Response) {
 		try {
 			const params: any = request.params;
-			await this.saleRepository.removeSaleBySlug(params.id, request.user);
+			await this.saleRepository.removeSaleById(params.id);
 			return responseServer(request, response, 202, 'Remove sale succesfully');
 		} catch (error) {
 			return raiseException(request, response, 500, 'Have an error ' + error.message);
@@ -83,7 +81,7 @@ export default class SaleApi {
 	}
 
 	@Get('/:id', [AdminAuthenticationMiddleware])
-	public async getSaleBySlug(request: Request, response: Response) {
+	public async getSaleById(request: Request, response: Response) {
 		try {
 			const params = request.params;
 			const result: any = await this.saleRepository.getDetailSale(params.id);
@@ -93,7 +91,6 @@ export default class SaleApi {
 			}
 			return responseServer(request, response, 404, 'Sale not found');
 		} catch (error) {
-			console.log({ error })
 			return raiseException(request, response, 500, error.message);
 		}
 	}
@@ -103,9 +100,19 @@ export default class SaleApi {
 		try {
 			const params: any = request.params;
 			const data: any = request.body;
-			const checkSaleExist: Array<any> = await this.saleRepository.getSaleByKeyValue('id', params.id);
+			
+			
+			const checkSaleExist: Array<any> = await this.saleRepository.getSaleByKeyValue('sale_id', params.id);
+			
 			if (checkSaleExist && checkSaleExist.length > 0) {
-				await this.saleRepository.updateDataSale(checkSaleExist[0].sale_id, data, request.user);
+				if(data.category_select){
+					data.category_select = JSON.stringify(data.category_select);
+				}
+				if(data.product_select){
+					//data.product_select = JSON.stringify(data.product_select);
+					data.product_select = data.product_select;
+				}
+				await this.saleRepository.updateDataSale(checkSaleExist[0].id, data, request.user);
 				return responseServer(request, response, 200, "Update sale successfully");
 			}
 			return raiseException(request, response, 404, "Can not found any sale");
@@ -115,34 +122,20 @@ export default class SaleApi {
 	}
 
 	private transformListSales(data: Array<any>): Array<any> {
+	
+		
 		return data.map((item: any) => {
-			let sale: any = {
-				id: item.id,
+			return {
+				id: item.sale_id,
 				name: item.name,
-				price: item.price,
-				price_sale: item.price_sale,
-				sku: item.sku
+				description: item.description,
+				type: item.type,
+				type_select: item.type_select,
+				category_select: item.category_select,
+				product_select: item.product_select,
+				status: item.status,
+				value: item.value,
 			};
-			if (item.sale_category_name) {
-				sale['category'] = {
-					name: item.sale_category_name,
-					id: item.sale_category_id
-				}
-			}
-			if (item.pi_key) {
-				sale['avatar'] = {
-					path: `${process.env.CLOUD_IMAGE_PATH}/${item.pi_path}/v${item.pi_version}/${item.pi_file_name}`,
-					key: item.pi_key
-				}
-			}
-			if (item.user_email) {
-				sale['user'] = {
-					email: item.user_email,
-					name: item.user_name
-				}
-			}
-
-			return sale;
 		});
 	}
 
@@ -166,61 +159,17 @@ export default class SaleApi {
 			result['detail'] = {
 				id: detailSale[0].sale_id,
 				name: detailSale[0].name,
-				price: detailSale[0].price,
-				price_sale: detailSale[0].price_sale,
-				sku: detailSale[0].sku,
+				type: detailSale[0].type,
+				type_select: detailSale[0].type_select,
+				category_select: JSON.parse(detailSale[0].category_select),
+				product_select:  JSON.parse(detailSale[0].product_select),
 				description: detailSale[0].description,
-				id_process_image: detailSale[0].id_process_image
+				status: detailSale[0].status,
+				value: detailSale[0].value
 			};
-			if (detailSale[0].file_name !== '') {
-				result['detail']['avatar'] = detailSale[0].file_name ? `${process.env.CLOUD_IMAGE_PATH}/${detailSale[0].path}/v${detailSale[0].version}/${detailSale[0].file_name}` : null;
-			}
-			if (detailSale[0].cat_id) {
-				result['detail']['category'] = {
-					id: detailSale[0].cat_id,
-					name: detailSale[0].cat_id,
-				}
-			}
+			
 		}
-		if (detailSale[1] && detailSale[1].length > 0) {
-			const combinationData: any = {};
-			detailSale[1].map((item: any) => {
-				const dataItem: any = {
-					combination_id: item.combination_id,
-					count: item.totalCount,
-					entity: item.entity_name,
-					entity_id: item.entity_id,
-					attr_id: item.attr_id
-				};
-				if (combinationData[item.combination_id]) {
-					combinationData[item.combination_id].push(dataItem);
-				} else {
-					combinationData[item.combination_id] = [dataItem];
-				}
-			});
-			result['combinations'] = Object.keys(combinationData).map((key: any) => combinationData[key]);
-		}
-		if (detailSale[2] && detailSale[2].length > 0) {
-			result['slides'] = detailSale[2].map((item: any) => {
-				return {
-					slide_id: item.slide_id,
-					link: item.link,
-					path: item.file_name ? `${process.env.CLOUD_IMAGE_PATH}/${item.path}/v${item.version}/${item.file_name}` : null,
-					process_image: item.id_process_image
-				}
-			});
-		}
-		if (detailSale && detailSale[3] && detailSale[3] && detailSale[3].length > 0) {
-			result['entityImages'] = detailSale[3].map((item: any) => {
-				return {
-					entity: item.entity_id,
-					entity_name: item.entity_name,
-					avatar: createImagePath(item),
-					process_image: item.process_image,
-					id_background: item.id_attribute_entity_background
-				}
-			});
-		}
+
 
 		return result;
 	}

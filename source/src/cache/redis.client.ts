@@ -5,7 +5,7 @@ import { ClientOpts, createClient, RedisClient } from 'redis';
 export class RedisClientFacade {
 	public redisClient: RedisClient;
 	private clientOptions: ClientOpts = {
-		host: 'redis',
+		host: '127.0.0.1',
 		port: 6379
 	};
 
