@@ -19,4 +19,11 @@ ADD UNIQUE INDEX `prioritize_UNIQUE` (`prioritize` ASC);
 ;
 
 ALTER TABLE `shop160_db`.`product_attribute_combinations` 
-ADD COLUMN `combination_sku`  INT(3) NULL DEFAULT NULL AFTER `updated_at`;
+ADD COLUMN `combination_sku`  VARCHAR(45) NULL DEFAULT NULL AFTER `updated_at`;
+
+ALTER TABLE `shop160_db`.`sales` 
+CHANGE COLUMN `prioritize` `prioritize` INT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `shop160_db`.`sales` 
+CHANGE COLUMN `description` `description` TEXT NULL DEFAULT NULL ;
+

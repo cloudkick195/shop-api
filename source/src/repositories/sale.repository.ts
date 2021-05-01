@@ -9,7 +9,7 @@ import { DBConnection } from '../database/connection';
 export class SaleRepository extends BaseRepository implements RepositoryInterface {
   public fillable: Array<string> = [
     'name', 'description', 'type', 'type_select',
-    'category_select', 'product_select', 'status', 'value'
+    'category_select', 'product_select', 'status', 'value', 'prioritize'
   ];
   private tableName: string = 'sales';
 
@@ -31,6 +31,9 @@ export class SaleRepository extends BaseRepository implements RepositoryInterfac
         
         return await this.getSaleByKeyValue('sale_id', rowInsertId, []);
     } catch (error) {
+      if(error.errno == 1062){
+        throw new Error('Độ ưu tiên bị trùng');
+      }
       throw new Error(error.message);
     }
   }
@@ -38,7 +41,7 @@ export class SaleRepository extends BaseRepository implements RepositoryInterfac
 
   public async getSaleByKeyValue(key: string, value: string | number, relations: Array<string> = []): Promise<any> {
     const connection: Knex = this.dbConnector.getConnection();
-    let selectQuery: string = `p.sale_id as id, p.name, p.description, p.type, p.type_select, p.category_select, p.product_select, p.status, p.value`;
+    let selectQuery: string = `p.sale_id as id, p.name, p.description, p.type, p.type_select, p.category_select, p.product_select, p.status, p.value, p.prioritize`;
     const params_sql: Array<string | number> = [];
     let joinRelation: string = ``;
 
@@ -89,6 +92,10 @@ export class SaleRepository extends BaseRepository implements RepositoryInterfac
       await t.commit();
       return true;
     } catch (error) {
+      if(error.errno == 1062){
+        throw new Error('Độ ưu tiên bị trùng');
+      }
+      
       if (t) await t.rollback();
       throw new Error(error);
     }
