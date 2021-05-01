@@ -13,7 +13,7 @@ import { createImagePath } from '../utils/transform/image.transform';
 import { CustomerRepository } from "../repositories/customer.repository";
 import { ProductCombinationRepository } from "../repositories/product/product-combination.repository";
 import axios from 'axios';
-
+import qs from 'qs'
 @Controller('/product')
 export default class ProductApi {
 	public productTitle: string;
@@ -150,6 +150,7 @@ export default class ProductApi {
 
 			// Check create/update order from Kiotviet
 			if (data.Notifications[0].Action === `order.update.${process.env.RETAILER_ID}`) {
+				console.log('run here')
 
 				const listProductOrder: any = dataFromWebhook.OrderDetails;
 				const listPromise:any = [];
@@ -339,9 +340,22 @@ export default class ProductApi {
 
 	private async getProductKiotviet(code: string): Promise<any> {
 		console.log('get code: ', code)
+		const data: any = {
+			"client_id": process.env.CLIENT_ID,
+			"client_secret": process.env.CLIENT_SECRET,
+			"grant_type": process.env.GRANT_TYPE,
+			"scopes": process.env.SCOPES,
+		}
+
+		const res: any = await axios.post(process.env.KIOTVIET_URL_TOKEN, qs.stringify(data), {
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			}
+		})
+		console.log('token: ', res.data.access_token)
     const product: any = await axios.get(`${process.env.KIOTVIET_PUBLIC_API}/products/code/${code}`, {
       headers: {
-          'Authorization': `Bearer ${process.env.KIOTVIET_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${res.data.access_token}`,
           'Retailer': process.env.RETAIL_NAME
       }
     })
