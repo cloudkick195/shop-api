@@ -90,10 +90,12 @@ export default class ProductApi {
 			console.log('***** dataFromWebhook ****** ', dataFromWebhook);
 			// check update product from Kiotviet
 			if(data.Notifications[0].Action === `product.update.${process.env.RETAILER_ID}`) {
+				
+				
 				const skuCode: string = dataFromWebhook.Code;
 				const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('sku', skuCode);
 				const checkConbinationSkuExistProductKiotviet = await this.productCombinationRepository.checkExistCombinationBySku(skuCode);
-
+				
 				// Update count of products in table product_attribute_combinations
 				if(checkConbinationSkuExistProductKiotviet) {
 					await this.productCombinationRepository.updateCount(skuCode, dataFromWebhook.Inventories[0].OnHand);
@@ -110,28 +112,28 @@ export default class ProductApi {
 					return responseServer(request, response, 200, "Update product successfully");
 				} else {
 					// If not find the product by sku then create new product
-					const newProductData: any = {
-						name: dataFromWebhook.Name,
-						price: dataFromWebhook.BasePrice,
-						description: dataFromWebhook.Description
-					}
-					const category: any = await this.productCategoryRepository.findProductCategoryByKey(dataFromWebhook.CategoryName, 'name');
-					if(category) {
-						newProductData.category_id = category.id
-					}
-					if (dataFromWebhook.Name) {
-						newProductData.slug = Str.slug(dataFromWebhook.Name);
-					}
+					// const newProductData: any = {
+					// 	name: dataFromWebhook.Name,
+					// 	price: dataFromWebhook.BasePrice,
+					// 	description: dataFromWebhook.Description
+					// }
+					// const category: any = await this.productCategoryRepository.findProductCategoryByKey(dataFromWebhook.CategoryName, 'name');
+					// if(category) {
+					// 	newProductData.category_id = category.id
+					// }
+					// if (dataFromWebhook.Name) {
+					// 	newProductData.slug = Str.slug(dataFromWebhook.Name);
+					// }
 
-					const products: any = await this.productRepository.getProductBySlug(newProductData.slug);
-					if (products && products.length > 0) {
-						return raiseException(request, response, 409, 'Slug is already exist');
-					}
-					if (newProductData.combinations) {
-						newProductData.count = this.getCountAllProductWhenCreateWithCombinationData(newProductData.combinations);
-					}
-					const newProduct: any = await this.productRepository.createProduct(newProductData, request.user);
-					return responseServer(request, response, 201, 'Create product successfully', newProduct);
+					// const products: any = await this.productRepository.getProductBySlug(newProductData.slug);
+					// if (products && products.length > 0) {
+					// 	return raiseException(request, response, 409, 'Slug is already exist');
+					// }
+					// if (newProductData.combinations) {
+					// 	newProductData.count = this.getCountAllProductWhenCreateWithCombinationData(newProductData.combinations);
+					// }
+					// const newProduct: any = await this.productRepository.createProduct(newProductData, request.user);
+					// return responseServer(request, response, 201, 'Create product successfully', newProduct);
 				}
 			}  
 			
@@ -166,6 +168,8 @@ export default class ProductApi {
 				return responseServer(request, response, 200, `Create/Update order from Kiotviet successfully`);
 			} 
 		} catch (error) {
+			console.log(error);
+			
 			return raiseException(request, response, 500, error.message);
 		}
 	}

@@ -52,6 +52,7 @@ export default class SaleApi {
 					type: ['required'],
 					type_select: ['required'],
 					value: ['required'],
+					prioritize: ['isNum'],
 				}, data
 			);
 			
@@ -65,6 +66,8 @@ export default class SaleApi {
 			const newSale: any = await this.saleRepository.createSale(data, request.user);
 			return responseServer(request, response, 201, 'Create sale successfully', newSale);
 		} catch (error) {
+			console.log(error);
+			
 			return raiseException(request, response, 500, error.message);
 		}
 	}
@@ -135,6 +138,7 @@ export default class SaleApi {
 				product_select: item.product_select,
 				status: item.status,
 				value: item.value,
+				prioritize: item.prioritize
 			};
 		});
 	}
@@ -165,7 +169,8 @@ export default class SaleApi {
 				product_select:  JSON.parse(detailSale[0].product_select),
 				description: detailSale[0].description,
 				status: detailSale[0].status,
-				value: detailSale[0].value
+				value: detailSale[0].value,
+				prioritize: detailSale[0].prioritize
 			};
 			
 		}

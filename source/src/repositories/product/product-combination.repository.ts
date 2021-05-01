@@ -47,7 +47,7 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
         `${productAttributeEntityCombinationsTable}.entity_id`
       ])
       .leftJoin(productAttributeEntityCombinationsTable, `${productAttributeEntityCombinationsTable}.combination_id`, `${this.tableName}.combination_id`)
-      .where({ [`${this.tableName}.is_archive`]: false, [`pac.combination_id`]: combinationId });
+      .where({ [`${this.tableName}.is_archive`]: false, [`${this.tableName}.combination_id`]: combinationId });
   }
 
   public async checkExistCombinationBySku(combinationSku: string): Promise<any> {
@@ -90,9 +90,12 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
     const connection: Knex = await this.dbConnector.getConnection();
     try {
       const currentCombination: Array<any> = await this.checkExistCombinationById(combinationId);
+      
       if (currentCombination && currentCombination.length > 0 && currentCombination[0].combination_id) {
         let listQueries: Array<Promise<any>> = [];
-        listQueries.push(connection(this.tableName).where({ combination_id: currentCombination[0].combination_id }).first().update({ is_archive: true }));
+        listQueries.push(connection(this.tableName).where({ combination_id: currentCombination[0].combination_id }).first().del());
+       
+        
         const listIds: Array<number> = currentCombination.map((item: any) => item.entity_id);
         if (listIds && listIds.length > 0) {
           const listEntityDataInCombinations: Array<any> = await this.productCombinationTypeRepository.checkListEntityInCombination(currentCombination[0].product_id, listIds);
@@ -120,6 +123,8 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
       }
       throw new Error("Not have any records");
     } catch (error) {
+      console.log(3, error);
+      
       throw new Error(error.message);
     }
   }
