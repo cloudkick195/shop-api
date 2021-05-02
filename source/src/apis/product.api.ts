@@ -94,12 +94,6 @@ export default class ProductApi {
 				
 				const skuCode: string = dataFromWebhook.Code;
 				const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('sku', skuCode);
-				const checkConbinationSkuExistProductKiotviet = await this.productCombinationRepository.checkExistCombinationBySku(skuCode);
-				
-				// Update count of products in table product_attribute_combinations
-				if(checkConbinationSkuExistProductKiotviet) {
-					await this.productCombinationRepository.updateCount(skuCode, dataFromWebhook.Inventories[0].OnHand);
-				}
 
 				// If find the product by sku then update product
 				if (checkProductExist && checkProductExist.length > 0) {
@@ -168,6 +162,16 @@ export default class ProductApi {
 				
 				return responseServer(request, response, 200, `Create/Update order from Kiotviet successfully`);
 			} 
+
+			// Check stock (Hàng tốn kho) update
+			if (data.Notifications[0].Action === `stock.update.${process.env.RETAILER_ID}`) {
+				const checkConbinationSkuExistProductKiotviet = await this.productCombinationRepository.checkExistCombinationBySku(dataFromWebhook.ProductCode);
+				
+				// Update count of products in table product_attribute_combinations
+				if(checkConbinationSkuExistProductKiotviet) {
+					await this.productCombinationRepository.updateCount(dataFromWebhook.ProductCode, dataFromWebhook.OnHand);
+				}
+			}
 		} catch (error) {
 			console.log(error);
 			
