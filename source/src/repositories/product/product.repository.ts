@@ -221,6 +221,7 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
 
   public async updateDataProduct(productId: number, dataUpdate: any, userActor: any): Promise<any> {
     let t: Knex.Transaction;
+
     try {
       const connection: Knex = this.dbConnector.getConnection();
       t = await connection.transaction();
