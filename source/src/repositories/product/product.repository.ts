@@ -144,6 +144,12 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
     return connection(this.tableName).where({ slug }).update({ archive_by: user.id });
   }
 
+  public async removeProductById(Id: string): Promise<any> {
+    const connection: Knex = this.dbConnector.getConnection();
+    
+    return connection(this.tableName).where({ product_id: Id }).del();
+  }
+
   public async getListCombinationOfProduct(productId: number): Promise<any> {
     const connection: Knex = this.dbConnector.getConnection();
     const sql = `
@@ -206,7 +212,7 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
   }
 
   public async getDetailProduct(productSlug: string): Promise<any> {
-    const productDetail: Array<any> = await this.getProductByKeyValue('slug', productSlug, ['image', 'category']);
+    const productDetail: Array<any> = await this.getProductByKeyValue('product_id', productSlug, ['image', 'category']);
     if (productDetail && productDetail[0]) {
       const productId: number = productDetail[0].product_id;
       const result: Array<any> = await Promise.all([
@@ -291,5 +297,9 @@ export class ProductRepository extends BaseRepository implements RepositoryInter
   public async getProductBySlug(slug: string) {
     const connection: Knex = this.dbConnector.getConnection();
     return connection('products').select(['product_id as id', 'name']).where({ slug }).first();
+  }
+  public async getProductById(id: string) {
+    const connection: Knex = this.dbConnector.getConnection();
+    return connection('products').select(['product_id as id', 'name']).where({ id }).first();
   }
 }

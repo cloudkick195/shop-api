@@ -183,22 +183,53 @@ export default class ProductApi {
 		}
 	}
 
-	@Delete('/:slug', [AdminAuthenticationMiddleware])
+	// @Delete('/:slug', [AdminAuthenticationMiddleware])
+	// public async removeProduct(request: RequestHandler, response: Response) {
+	// 	try {
+	// 		const params: any = request.params;
+			
+	// 		await this.productRepository.removeProductBySlug(params.slug, request.user);
+	// 		return responseServer(request, response, 202, 'Remove product succesfully');
+	// 	} catch (error) {
+	// 		return raiseException(request, response, 500, 'Have an error ' + error.message);
+	// 	}
+	// }
+	@Delete('/:id', [AdminAuthenticationMiddleware])
 	public async removeProduct(request: RequestHandler, response: Response) {
 		try {
+
 			const params: any = request.params;
-			await this.productRepository.removeProductBySlug(params.slug, request.user);
+			
+			await this.productRepository.removeProductById(params.id);
+			
 			return responseServer(request, response, 202, 'Remove product succesfully');
 		} catch (error) {
 			return raiseException(request, response, 500, 'Have an error ' + error.message);
 		}
 	}
 
-	@Get('/:slug', [AdminAuthenticationMiddleware])
-	public async getProductBySlug(request: Request, response: Response) {
+	// @Get('/:slug', [AdminAuthenticationMiddleware])
+	// public async getProductBySlug(request: Request, response: Response) {
+	// 	try {
+	// 		const params = request.params;
+	// 		const result: any = await this.productRepository.getDetailProduct(params.slug);
+	// 		if (result && result[0]) {
+	// 			const detailProduct: any = this.remapDetailProduct(result);
+	// 			return responseServer(request, response, 200, "Get info product successfully", detailProduct);
+	// 		}
+	// 		return responseServer(request, response, 404, 'Product not found');
+	// 	} catch (error) {
+	// 		console.log({ error })
+	// 		return raiseException(request, response, 500, error.message);
+	// 	}
+	// }
+
+	
+	@Get('/:id', [AdminAuthenticationMiddleware])
+	public async getProductById(request: Request, response: Response) {
 		try {
 			const params = request.params;
-			const result: any = await this.productRepository.getDetailProduct(params.slug);
+			const result: any = await this.productRepository.getDetailProduct(params.id);
 			if (result && result[0]) {
 				const detailProduct: any = this.remapDetailProduct(result);
 				return responseServer(request, response, 200, "Get info product successfully", detailProduct);
@@ -210,12 +241,23 @@ export default class ProductApi {
 		}
 	}
 
-	@Patch('/:slug', [AdminAuthenticationMiddleware])
+	@Patch('/:id', [AdminAuthenticationMiddleware])
 	public async updateProduct(request: RequestHandler, response: Response) {
 		try {
 			const params: any = request.params;
 			const data: any = request.body;
-			const checkProductExist: Array<any> = await this.productRepository.getProductByKeyValue('slug', params.slug);
+			const listQuery:any = [
+				this.productRepository.getProductByKeyValue('product_id', params.id)
+			]
+			if(data.slug !== undefined){
+				listQuery.push(this.productRepository.getProductByKeyValue('slug', data.slug));
+			}
+			const results: any = await Promise.all(listQuery);
+			
+			if(results[1] && results[1].length > 0){
+				return raiseException(request, response, 200, "slug_exist");
+			}
+			const checkProductExist: Array<any> = results[0];
 			if (checkProductExist && checkProductExist.length > 0) {
 				await this.productRepository.updateDataProduct(checkProductExist[0].product_id, data, request.user);
 				return responseServer(request, response, 200, "Update product successfully");

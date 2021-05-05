@@ -87,6 +87,7 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
   }
 
   public async removeCombination(combinationId: number): Promise<any> {
+    
     const connection: Knex = await this.dbConnector.getConnection();
     try {
       const currentCombination: Array<any> = await this.checkExistCombinationById(combinationId);
@@ -97,12 +98,14 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
        
         
         const listIds: Array<number> = currentCombination.map((item: any) => item.entity_id);
+        
         if (listIds && listIds.length > 0) {
           const listEntityDataInCombinations: Array<any> = await this.productCombinationTypeRepository.checkListEntityInCombination(currentCombination[0].product_id, listIds);
-          if (listEntityDataInCombinations && listEntityDataInCombinations[0] && listEntityDataInCombinations[0].length > 0) {
+        
+          if (listEntityDataInCombinations && listEntityDataInCombinations[0]) {
             const attributeCombinations: any = {};
             let listIdsToRemoveInBackground: Array<any> = [];
-            listEntityDataInCombinations[0].map((item: any) => {
+            listEntityDataInCombinations.map((item: any) => {
               if (!attributeCombinations[item.entity_id]) {
                 attributeCombinations[item.entity_id] = [item.combination_id];
               } else {
@@ -114,6 +117,8 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
                 listIdsToRemoveInBackground.push(parseInt(key));
               }
             });
+           
+           
             if (listIdsToRemoveInBackground && listIdsToRemoveInBackground.length > 0) {
               listQueries.push(this.productEntityBackgroundRepository.removeListEntityBackgroundByIdEntity(currentCombination[0].product_id, listIdsToRemoveInBackground));
             }

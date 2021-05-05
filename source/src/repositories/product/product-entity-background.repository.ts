@@ -87,6 +87,6 @@ export class ProductEntityBackgroundRepository extends BaseRepository implements
     return connection(this.tableName)
       .where({ product_id: productId })
       .whereIn('entity_id', listIdEntity)
-      .update({ is_archive: true });
+      .delete();
   }
 }
