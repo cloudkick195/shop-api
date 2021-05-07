@@ -13,7 +13,9 @@ import { createImagePath } from '../utils/transform/image.transform';
 import { CustomerRepository } from "../repositories/customer.repository";
 import { ProductCombinationRepository } from "../repositories/product/product-combination.repository";
 import axios from 'axios';
-import qs from 'qs'
+import qs from 'qs';
+import { KiotvietApi } from "../helpers/kiotvietApi.helper";
+
 @Controller('/product')
 export default class ProductApi {
 	public productTitle: string;
@@ -247,23 +249,95 @@ export default class ProductApi {
 			const params: any = request.params;
 			const data: any = request.body;
 			const listQuery:any = [
-				this.productRepository.getProductByKeyValue('product_id', params.id)
+				this.productRepository.getProductByKeyValue('product_id', params.id),
+				this.productCombinationRepository.getCombinationByProductId(params.id)
 			]
+			
 			if(data.slug !== undefined){
 				listQuery.push(this.productRepository.getProductByKeyValue('slug', data.slug));
 			}
+			let messObject:any = {
+				code: "200",
+				mess: "Update product successfully"
+			};
 			const results: any = await Promise.all(listQuery);
 			
-			if(results[1] && results[1].length > 0){
+			if(results[2] && results[2].length > 0){
 				return raiseException(request, response, 200, "slug_exist");
 			}
+		
+		
+			if(results[1] && results[1].length > 0){
+				const updateCombinations:any = {}
+				const newCombinations:any = {}
+
+				const objApiProduct:any = {};
+				results[1].forEach((element:any) => {
+					if(element.combination_sku){
+						updateCombinations[element.id] = element;
+						objApiProduct[element.id] = element.combination_sku;
+					}
+				});
+				
+				if(data.updateCombinations && data.updateCombinations.length > 0){
+					
+					data.updateCombinations.forEach((element:any) => {
+						
+						if(element.combination_sku){
+							updateCombinations[element.id] = element;
+							objApiProduct[element.id] = element.combination_sku;
+						}
+					});
+				}
+				
+				if(data.newCombinations && data.newCombinations.length > 0){
+					
+					data.newCombinations.forEach((element:any) => {
+						if(element.combination_sku){
+							newCombinations[element.id] = element;
+							objApiProduct[element.id] = element.combination_sku;
+						}
+					});
+				}
+				
+				const objApiProductIds:any = Object.keys(objApiProduct);
+				if(objApiProductIds.length > 0){
+					const apiProducts:any = await KiotvietApi.getProductsKiotviet(Object.values(objApiProduct));
+						
+				
+					if(apiProducts && !apiProducts.error){
+						objApiProductIds.forEach((element:any, index:any) => {
+							
+							if(updateCombinations[element]){
+								updateCombinations[element].count=apiProducts[index].data.inventories[0].onHand;
+							}
+							if(newCombinations[element]){
+								newCombinations[element].count=apiProducts[index].data.inventories[0].onHand;
+							}
+						});
+						data.updateCombinations = Object.values(updateCombinations);
+						data.newCombinations = Object.values(newCombinations);
+					}else if(apiProducts.error){
+						
+						messObject = {
+							code: 500,
+							mess: apiProducts.error
+						};
+					}
+					
+				}
+
+			}
+			
 			const checkProductExist: Array<any> = results[0];
 			if (checkProductExist && checkProductExist.length > 0) {
 				await this.productRepository.updateDataProduct(checkProductExist[0].product_id, data, request.user);
-				return responseServer(request, response, 200, "Update product successfully");
+				return responseServer(request, response, messObject.code, messObject.mess);
 			}
 			return raiseException(request, response, 404, "Can not found any product");
 		} catch (error) {
+			console.log(33);
+			
 			return raiseException(request, response, 500, error.message);
 		}
 	}

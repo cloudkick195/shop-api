@@ -19,6 +19,11 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
     super();
   }
 
+  public async getCombinationByProductId(id: string) {
+    const connection: Knex = this.dbConnector.getConnection();
+    return connection(this.tableName).select(['count', 'combination_sku', 'combination_id as id']).where({ product_id: id });
+  }
+
   public async createCombination(productId: number, count: number): Promise<any> {
     const connection: Knex = this.dbConnector.getConnection();
     const [rowInsertId] = await connection(this.tableName).insert(super.composeDataWithFillable({ product_id: productId, count }));
@@ -160,7 +165,9 @@ export class ProductCombinationRepository extends BaseRepository implements Repo
       };
       const listIds: Array<number> = [];
       const queryLists: Array<string> = [];
+     
       dataUpdate.map((item: any, index: number) => {
+        
         if (item && item.id && item.id > 0) {
           listIds.push(item.id);
           if ('count' in item) {
