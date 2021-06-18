@@ -24,6 +24,7 @@ export class AuthController {
 				email: ['required', 'email'],
 				password: ['required', 'minLength:6']
 			};
+			
 			const validates: any = RequestValidate.handle(validation, data);
 			if (!validates.success) {
 				return raiseException(request, response, 400, "Validators fail", validates.errors);

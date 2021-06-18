@@ -70,7 +70,7 @@ export default class ProductApi {
 				return raiseException(request, response, 400, 'Validate failure', validatesRequest.errors);
 			}
 			const products: any = await this.productRepository.getProductBySlug(data.slug);
-			if (products && products.length > 0) {
+			if (products && (products.length > 0 || products.id)) {
 				return raiseException(request, response, 409, 'Slug is already exist');
 			}
 			if (data.combinations) {

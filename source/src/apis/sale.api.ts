@@ -94,6 +94,8 @@ export default class SaleApi {
 			}
 			return responseServer(request, response, 404, 'Sale not found');
 		} catch (error) {
+			console.log(2, error);
+			
 			return raiseException(request, response, 500, error.message);
 		}
 	}
@@ -112,8 +114,7 @@ export default class SaleApi {
 					data.category_select = JSON.stringify(data.category_select);
 				}
 				if(data.product_select){
-					//data.product_select = JSON.stringify(data.product_select);
-					data.product_select = data.product_select;
+					data.product_select = JSON.stringify(data.product_select);
 				}
 				await this.saleRepository.updateDataSale(checkSaleExist[0].id, data, request.user);
 				return responseServer(request, response, 200, "Update sale successfully");
@@ -165,8 +166,8 @@ export default class SaleApi {
 				name: detailSale[0].name,
 				type: detailSale[0].type,
 				type_select: detailSale[0].type_select,
-				category_select: JSON.parse(detailSale[0].category_select),
-				product_select:  JSON.parse(detailSale[0].product_select),
+				category_select: detailSale[0].category_select ? JSON.parse(detailSale[0].category_select) : "",
+				product_select:  detailSale[0].product_select ? JSON.parse(detailSale[0].product_select) : "",
 				description: detailSale[0].description,
 				status: detailSale[0].status,
 				value: detailSale[0].value,
@@ -174,7 +175,6 @@ export default class SaleApi {
 			};
 			
 		}
-
 
 		return result;
 	}
